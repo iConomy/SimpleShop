@@ -1,0 +1,15 @@
+# Max items per sale/purchase. 64 if using :amount = 1 bundle if you do :64
+max-items-per-sale=64
+max-items-per-purchase=64
+
+# Shop tag information
+shop-tag=&d[&fShop&d]&f 
+
+# Database type:
+# SQLite & MySQL are supported. Default is SQLite.
+database-type=sqlite
+
+# MySQL, if you place mysql above.
+mysql-user=root
+mysql-pass=pass
+mysql-db=jdbc\:mysql\://localhost\:3306/minecraft

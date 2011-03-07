@@ -1,0 +1,8 @@
+name: SimpleShop
+main: com.nijiko.simpleshop.SimpleShop
+version: 1.4
+author: Nijikokun
+commands:
+    shop:
+        description:
+        usage:
