@@ -49,8 +49,8 @@ public class SimpleShop extends JavaPlugin {
     public static final Logger log = Logger.getLogger("Minecraft");
 
     public static String name = "SimpleShop";
-    public static String codename = "Zen";
-    public static String version = "1.4";
+    public static String codename = "Sen";
+    public static String version = "1.4.1";
 
     public iListen Listener = new iListen(this);
     public static Permissions Permissions;
@@ -70,7 +70,7 @@ public class SimpleShop extends JavaPlugin {
     public static Timer timer = null;
     public static iConomy iConomy = null;
     public static HashMap<String, String> items;
-    public static Database db = null;
+    public static Wrapper Database = null;
 
     public SimpleShop() { }
 
@@ -140,13 +140,13 @@ public class SimpleShop extends JavaPlugin {
                 Downloader.install("http://mirror.anigaiku.com/Dependencies/mysql-connector-java-bin.jar", "mysql-connector-java-bin.jar");
             }
 
-            db = new Database(Database.Type.MYSQL);
+            Database = new Wrapper(Wrapper.Type.MYSQL);
         } else {
             if(!(new File("lib" + File.separator, "sqlitejdbc-v056.jar").exists())) {
                 Downloader.install("http://mirror.anigaiku.com/Dependencies/sqlitejdbc-v056.jar", "sqlitejdbc-v056.jar");
             }
 
-            db = new Database(Database.Type.SQLITE);
+            Database = new Wrapper(Wrapper.Type.SQLITE);
         }
     }
 

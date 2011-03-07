@@ -170,6 +170,33 @@ public class Items {
         }
     }
 
+    public static int[] parse(String item) {
+        int[] i = new int[] { 1, -1, -1 };
+        if (item.contains(":")) {
+            String[] data = item.split(":");
+
+            try {
+                i[0] = Integer.valueOf(data[1]);
+            } catch (NumberFormatException e) { }
+
+            i[1] = validate(data[0]);
+            i[2] = validateGrabType(data[0]);
+        } else {
+            i[1] = validate(item);
+            i[2] = validateGrabType(item);
+        }
+
+        return i;
+    }
+
+    public static void give(Player player, int item, int type, int amount) {
+        if (type == -1) {
+            player.getInventory().addItem(new ItemStack(item, amount));
+        } else {
+            player.getInventory().addItem(new ItemStack(item, amount, (byte) type));
+        }
+    }
+
     /**
      * Validate the string for an item
      *

@@ -36,14 +36,15 @@ public class iListen extends PlayerListener {
         Template = new Template("plugins" + File.separator + "iConomy" + File.separator, "Messages.yml");
 
         Commands = new CLI();
+
         Commands.add("/shop -help|?");
-        Commands.add("/shop -list|-l +page");
-        Commands.add("/shop -buy|-b +item");
-        Commands.add("/shop -sell|-s +item");
-        Commands.add("/shop -add|-a +item +buy +sell +stock");
-        Commands.add("/shop -update|-u +item +buy +sell +stock +type:-1");
-        Commands.add("/shop -remove|-r +item");
-        Commands.add("/shop -check|-c +item");
+        Commands.add("/shop -list|-l +page:1");
+        Commands.add("/shop -buy|-b +item:-1 +who:nobodyreallylongname");
+        Commands.add("/shop -sell|-s +item:-1");
+        Commands.add("/shop -add|-a +item +buy:0 +sell:0 +stock:0");
+        Commands.add("/shop -update|-u +item +buy:0 +sell:0 +stock:0 +type:-1");
+        Commands.add("/shop -remove|-r +item:-1");
+        Commands.add("/shop -check|-c +item:-1");
     }
 
     /**
@@ -63,12 +64,22 @@ public class iListen extends PlayerListener {
         Messaging.send("&e----------------------------------------------------");
     }
 
-    private double get_balance(String name) {
+    private double getBalance(String name) {
         return iConomy.getBank().getAccount(name).getBalance();
     }
 
-    private void set_balance(String name, double amount) {
+    private void setBalance(String name, double amount) {
         iConomy.getBank().getAccount(name).setBalance(amount);
+    }
+    
+    private void subtract(String name, double amount) {
+        iConomy.getBank().getAccount(name).subtract(amount);
+        iConomy.getBank().getAccount(name).save();
+    }
+
+    private void add(String name, double amount) {
+        iConomy.getBank().getAccount(name).add(amount);
+        iConomy.getBank().getAccount(name).save();
     }
 
     /**
@@ -79,11 +90,11 @@ public class iListen extends PlayerListener {
      * @param mine Is it the player who is trying to view?
      */
     public void showBalance(Player viewing) {
-        Messaging.send(viewing, Template.color("tag") + Template.parse("personal.balance", new String[]{"+balance,+b"}, new String[]{ iConomy.getBank().format(viewing.getName())}));
+        Messaging.send(viewing, Template.color("tag") + Template.parse("personal.balance", new String[]{"+balance,+b"}, new String[]{iConomy.getBank().format(viewing.getName())}));
     }
 
     public void onPlayerCommand(Player player, String message) {
-        double balance = get_balance(player.getName());
+        double balance = getBalance(player.getName());
 
         // Save player.
         Messaging.save(player);
@@ -99,17 +110,12 @@ public class iListen extends PlayerListener {
         if (base != null) {
             if (Misc.is(base, "shop")) {
                 if (command == null) {
-                        showSimpleHelp(); return;
+                    showSimpleHelp();
+                    return;
                 }
 
-                if(command.equals("check")) {
-                    if(variables.get(0) instanceof Integer) {
-                        if(Integer.valueOf((String.valueOf(variables.get(0)))) == 0) {
-                            showSimpleHelp(); return;
-                        }
-                    }
-
-                    String item = String.valueOf(variables.get(0));
+                if (command.equals("check")) {
+                    String item = Commands.getString("item");
                     int itemId = Items.validate(item);
                     int itemType = Items.validateGrabType(item);
 
@@ -118,7 +124,7 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    int[] data = SimpleShop.db.data(itemId, itemType);
+                    int[] data = SimpleShop.Database.data(itemId, itemType);
 
                     if (data[0] == -1) {
                         Messaging.send(SimpleShop.shop_tag + "&7Item currently not for purchase.");
@@ -148,31 +154,30 @@ public class iListen extends PlayerListener {
                 }
 
                 if (Misc.isEither(command, "list", "l")) {
-                    ArrayList<int[]> list = SimpleShop.db.list();
+                    ArrayList<int[]> list = SimpleShop.Database.list();
                     int per_page = 7;
-                    int current_page = Integer.valueOf(String.valueOf(variables.get(0)));
-                    current_page = (current_page == 0) ? 1 : current_page;
+                    int current_page = (Commands.getInteger("page") == 0) ? 1 : Commands.getInteger("page");
                     int size = 0;
 
-                    for(int[] data : list) {
+                    for (int[] data : list) {
                         if (data[2] != -1 && data[3] != -1) {
                             size++;
                         }
                     }
 
-                    int amount_pages = (int)Math.ceil(size / per_page) + 1;
+                    int amount_pages = (int) Math.ceil(size / per_page) + 1;
                     int page_values = (current_page - 1) * per_page;
                     int page_show = (current_page - 1) * per_page + per_page;
 
                     if (list.isEmpty()) {
                         Messaging.send(SimpleShop.shop_tag + "&7No items available.");
-                    } else if(current_page > amount_pages) {
+                    } else if (current_page > amount_pages) {
                         Messaging.send(SimpleShop.shop_tag + "&7Invalid page number.");
                     } else {
-                        Messaging.send(SimpleShop.shop_tag + "&dPage &f#"+current_page+"&d of &f"+amount_pages+" &dpages.");
+                        Messaging.send(SimpleShop.shop_tag + "&dPage &f#" + current_page + "&d of &f" + amount_pages + " &dpages.");
 
                         for (int i = page_values; i < page_show; i++) {
-                            if(list.size()-1 >= i) {
+                            if (list.size() - 1 >= i) {
                                 int[] data = list.get(i);
 
                                 if (data[2] == -1 && data[3] == -1) {
@@ -198,64 +203,72 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    String item = String.valueOf(variables.get(0));
-                    int itemId = -1;
-                    int itemType = -1;
-                    int amount = 1;
+                    int[] itemData = Items.parse(Commands.getString("item"));
+                    int itemId = itemData[1];
+                    int itemType = itemData[2];
+                    int amount = itemData[0];
 
-                    if (item.contains(":")) {
-                        String[] data = item.split(":");
-
-                        try {
-                            amount = Integer.valueOf(data[1]);
-                        } catch (NumberFormatException e) {
-                            amount = 1;
-                        }
-
-                        itemId = Items.validate(data[0]);
-                        itemType = Items.validateGrabType(data[0]);
-                    } else {
-                        itemId = Items.validate(item);
-                        itemType = Items.validateGrabType(item);
-                    }
+                    String who = Commands.getString("who");
 
                     if (itemId == -1) {
                         Messaging.send(SimpleShop.shop_tag + "&7Invalid item.");
                         return;
                     }
 
-                    int[] data = SimpleShop.db.data(itemId, itemType);
+                    int[] data = SimpleShop.Database.data(itemId, itemType);
+                    int cost = (data[2] * amount);
+                    int total = (amount * data[4]);
 
                     if (data[0] == -1 || data[2] == -1) {
-                        Messaging.send(SimpleShop.shop_tag + "&7Item currently not for sale.");
-                        return;
+                        Messaging.send(SimpleShop.shop_tag + "&7Item currently not for sale."); return;
                     }
 
-                    if (amount < 1 || (amount * data[4]) > SimpleShop.max_per_purchase) {
-                        Messaging.send(SimpleShop.shop_tag + "&7Amount over max per purchase.");
-                        return;
+                    if (amount < 1 || total > SimpleShop.max_per_purchase) {
+                        Messaging.send(SimpleShop.shop_tag + "&7Amount over max per purchase."); return;
                     }
 
-                    if (balance < (data[2] * amount)) {
-                        Messaging.send(SimpleShop.shop_tag + "&7You do not have enough &f" + iConomy.getBank().getCurrency() + "&7 to do this.");
-                        return;
+                    if (balance < cost) {
+                        Messaging.send(SimpleShop.shop_tag + "&7You do not have enough &f" + iConomy.getBank().getCurrency() + "&7 to do this."); return;
                     }
 
-                    if(SimpleShop.utilize_stock && (data[4]*amount) < data[5]) {
-                        Messaging.send(SimpleShop.shop_tag + "&7Currently &f" + Items.name(itemId) + "&7 is low in stock.");
-                        return;
+                    if (SimpleShop.utilize_stock && total < data[5]) {
+                        Messaging.send(SimpleShop.shop_tag + "&7Currently &f" + Items.name(itemId) + "&7 is low in stock."); return;
                     }
+                    
+                    if(!who.equalsIgnoreCase("nobodyreallylongname")) {
+                        if (!SimpleShop.Permissions.Security.permission(player, "simpleshop.buy.gift")) {
+                            return;
+                        }
+                        
+                        Player gifted = Misc.playerMatch(who);
+                        
+                        if(gifted != null) {
+                            subtract(player.getName(), cost);
+                            Items.give(gifted, itemId, itemType, total);
 
-                    set_balance(player.getName(), (balance - (data[2] * amount)));
+                            Messaging.send(
+                                SimpleShop.shop_tag + "Gift Purchased &d[&f" + total + "&d]&f " +  Items.name(itemId) + " for " + who + " cost &d" + iConomy.getBank().format(total)
+                            );
+                            
+                            Messaging.send(gifted,
+                                SimpleShop.shop_tag +  "Gift Recieved &d[&f" + total + "&d]&f " +  Items.name(itemId) + " from " + player.getName()
+                            );
 
-                    if (itemType == -1) {
-                        player.getInventory().addItem(new ItemStack(itemId, (amount * data[4])));
+                            showBalance(player);
+                        } else {
+                            Messaging.send(SimpleShop.shop_tag + "&7Sorry, " + who + " does not exist.."); return;
+                        }
                     } else {
-                        player.getInventory().addItem(new ItemStack(itemId, (amount * data[4]), (byte) itemType));
-                    }
+                        subtract(player.getName(), cost);
+                        Items.give(player, itemId, itemType, total);
 
-                    Messaging.send(SimpleShop.shop_tag + "Purchased &d[&f" + (amount * data[4]) + "&d]&f " + Items.name(itemId) + " for &d" + iConomy.getBank().format((data[2] * amount)));
-                    showBalance(player);
+                        Messaging.send(
+                            SimpleShop.shop_tag +
+                            "Purchased &d[&f" + total + "&d]&f " +  Items.name(itemId) + " for &d" + iConomy.getBank().format(total)
+                        );
+
+                        showBalance(player);
+                    }
                 }
 
                 if (Misc.isEither(command, "sell", "s")) {
@@ -263,33 +276,12 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    String item = String.valueOf(variables.get(0));
-                    int itemId = -1;
-                    int itemType = -1;
-                    int amount = 1;
+                    int[] itemData = Items.parse(Commands.getString("item"));
+                    int itemId = itemData[1];
+                    int itemType = itemData[2];
+                    int amount = itemData[0];
 
-                    if (item.contains(":")) {
-                        String[] data = item.split(":");
-
-                        try {
-                            amount = Integer.valueOf(data[1]);
-                        } catch (NumberFormatException e) {
-                            amount = 1;
-                        }
-
-                        itemId = Items.validate(data[0]);
-                        itemType = Items.validateGrabType(data[0]);
-                    } else {
-                        itemId = Items.validate(item);
-                        itemType = Items.validateGrabType(item);
-                    }
-
-                    if (itemId == -1) {
-                        Messaging.send(SimpleShop.shop_tag + "&7Invalid item.");
-                        return;
-                    }
-
-                    int[] data = SimpleShop.db.data(itemId, itemType);
+                    int[] data = SimpleShop.Database.data(itemId, itemType);
 
                     if (data[0] == -1 || data[3] == -1) {
                         Messaging.send(SimpleShop.shop_tag + "&7Item currently not for purchase.");
@@ -314,11 +306,11 @@ public class iListen extends PlayerListener {
                     }
 
                     if (SimpleShop.utilize_stock) {
-                        SimpleShop.db.update(data[0], data[1], data[1], data[2], data[3], data[4], (data[5] + (amount * data[4])));
+                        SimpleShop.Database.update(data[0], data[1], data[1], data[2], data[3], data[4], (data[5] + (amount * data[4])));
                     }
 
                     Items.remove(player, itemId, (amount * data[4]));
-                    set_balance(player.getName(), (balance + (data[3] * amount)));
+                    add(player.getName(), (data[3] * amount));
 
                     Messaging.send(SimpleShop.shop_tag + "Sold &d[&f" + (amount * data[4]) + "&d]&f " + Items.name(itemId) + " for &d" + iConomy.getBank().format((data[3] * amount)));
 
@@ -343,29 +335,14 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    String item = String.valueOf(variables.get(0));
-                    int itemId = -1;
-                    int itemType = -1;
-                    int amount = 1;
-                    int buy = Integer.valueOf((String.valueOf(variables.get(1)) == null) ? "0" : String.valueOf(variables.get(1)));
-                    int sell = Integer.valueOf((String.valueOf(variables.get(2)) == null) ? "0" : String.valueOf(variables.get(2)));
-                    int stock = Integer.valueOf((String.valueOf(variables.get(3)) == null) ? "0" : String.valueOf(variables.get(3)));
+                    int[] itemData = Items.parse(Commands.getString("item"));
+                    int itemId = itemData[1];
+                    int itemType = itemData[2];
+                    int amount = itemData[0];
 
-                    if (item.contains(":")) {
-                        String[] data = item.split(":");
-
-                        try {
-                            amount = Integer.valueOf(data[1]);
-                        } catch (NumberFormatException e) {
-                            amount = 1;
-                        }
-
-                        itemId = Items.validate(data[0]);
-                        itemType = Items.validateGrabType(data[0]);
-                    } else {
-                        itemId = Items.validate(item);
-                        itemType = Items.validateGrabType(item);
-                    }
+                    int buy = Commands.getInteger("buy");
+                    int sell = Commands.getInteger("sell");
+                    int stock = Commands.getInteger("stock");
 
                     if (itemId == -1) {
                         Messaging.send(SimpleShop.shop_tag + "&7Invalid item.");
@@ -387,9 +364,9 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    SimpleShop.db.add(itemId, itemType, buy, sell, amount, stock);
+                    SimpleShop.Database.add(itemId, itemType, buy, sell, amount, stock);
                     Messaging.send(SimpleShop.shop_tag + "Item " + Items.name(itemId) + " added:");
-                    
+
                     if (buy != -1) {
                         Messaging.send("Purchasable: &d[&f" + amount + "&d]&f for &d" + iConomy.getBank().format(buy));
                     }
@@ -410,30 +387,15 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    String item = String.valueOf(variables.get(0));
-                    int itemId = -1;
-                    int itemType = -1;
-                    int oldType = Integer.valueOf(String.valueOf(variables.get(4)));
-                    int amount = 1;
-                    int buy = Integer.valueOf(String.valueOf(variables.get(1)));
-                    int sell = Integer.valueOf(String.valueOf(variables.get(2)));
-                    int stock = Integer.valueOf((String.valueOf(variables.get(3)) == null) ? "0" : String.valueOf(variables.get(3)));
+                    int[] itemData = Items.parse(Commands.getString("item"));
+                    int itemId = itemData[1];
+                    int itemType = itemData[2];
+                    int amount = itemData[0];
 
-                    if (item.contains(":")) {
-                        String[] data = item.split(":");
-
-                        try {
-                            amount = Integer.valueOf(data[1]);
-                        } catch (NumberFormatException e) {
-                            amount = 1;
-                        }
-
-                        itemId = Items.validate(data[0]);
-                        itemType = Items.validateGrabType(data[0]);
-                    } else {
-                        itemId = Items.validate(item);
-                        itemType = Items.validateGrabType(item);
-                    }
+                    int oldType = Commands.getInteger("type");
+                    int buy = Commands.getInteger("buy");
+                    int sell = Commands.getInteger("sell");
+                    int stock = Commands.getInteger("stock");
 
                     if (itemId == -1) {
                         Messaging.send(SimpleShop.shop_tag + "&7Invalid item.");
@@ -455,10 +417,10 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    SimpleShop.db.update(itemId, oldType, itemType, buy, sell, amount, stock);
+                    SimpleShop.Database.update(itemId, oldType, itemType, buy, sell, amount, stock);
                     Messaging.send(SimpleShop.shop_tag + "Item " + Items.name(itemId) + " updated:");
 
-                     if (buy != -1) {
+                    if (buy != -1) {
                         Messaging.send("Purchasable: &d[&f" + amount + "&d]&f for &d" + iConomy.getBank().format(buy));
                     }
 
@@ -477,7 +439,7 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    String item = String.valueOf(variables.get(0));
+                    String item = Commands.getString("item");
                     int itemId = Items.validate(item);
                     int itemType = Items.validateGrabType(item);
 
@@ -486,7 +448,7 @@ public class iListen extends PlayerListener {
                         return;
                     }
 
-                    SimpleShop.db.remove(itemId);
+                    SimpleShop.Database.remove(itemId);
                     Messaging.send(SimpleShop.shop_tag + "Item(s) " + Items.name(itemId) + " was removed.");
                     return;
                 }

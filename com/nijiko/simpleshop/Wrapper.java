@@ -18,7 +18,7 @@ import java.util.ArrayList;
  *
  * @author Nijiko
  */
-public class Database {
+public class Wrapper {
 
     public enum Type {
         SQLITE,
@@ -46,7 +46,7 @@ public class Database {
     public ArrayList<String> Tips = new ArrayList<String>();
     public int i = 0;
 
-    public Database(Type database) {
+    public Wrapper(Type database) {
         this.database = database;
         this.initialize();
     }
