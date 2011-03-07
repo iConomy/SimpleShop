@@ -136,7 +136,13 @@ public class Wrapper {
     private void update() {
         FileManager FileManager = new FileManager(SimpleShop.directory, "VERSION.txt", false);
         boolean update = false;
-        double version = Double.valueOf(SimpleShop.version);
+        double version = 0.0;
+
+        try {
+            version = Double.valueOf(SimpleShop.version);
+        } catch(NumberFormatException e) {
+            version = 1.4;
+        }
 
         if(!FileManager.exists()) {
             update = true;

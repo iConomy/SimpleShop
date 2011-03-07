@@ -259,12 +259,12 @@ public class iListen extends PlayerListener {
                             Messaging.send(SimpleShop.shop_tag + "&7Sorry, " + who + " does not exist.."); return;
                         }
                     } else {
-                        subtract(player.getName(), cost);
+                        subtract(player.getName(), Double.valueOf(cost));
                         Items.give(player, itemId, itemType, total);
 
                         Messaging.send(
                             SimpleShop.shop_tag +
-                            "Purchased &d[&f" + total + "&d]&f " +  Items.name(itemId) + " for &d" + iConomy.getBank().format(total)
+                            "Purchased &d[&f" + total + "&d]&f " +  Items.name(itemId) + " for &d" + iConomy.getBank().format(cost)
                         );
 
                         showBalance(player);
@@ -310,7 +310,7 @@ public class iListen extends PlayerListener {
                     }
 
                     Items.remove(player, itemId, (amount * data[4]));
-                    add(player.getName(), (data[3] * amount));
+                    add(player.getName(), Double.valueOf(data[3] * amount));
 
                     Messaging.send(SimpleShop.shop_tag + "Sold &d[&f" + (amount * data[4]) + "&d]&f " + Items.name(itemId) + " for &d" + iConomy.getBank().format((data[3] * amount)));
 

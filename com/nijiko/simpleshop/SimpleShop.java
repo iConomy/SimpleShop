@@ -50,7 +50,7 @@ public class SimpleShop extends JavaPlugin {
 
     public static String name = "SimpleShop";
     public static String codename = "Sen";
-    public static String version = "1.4.1";
+    public static String version = "1.41";
 
     public iListen Listener = new iListen(this);
     public static Permissions Permissions;
